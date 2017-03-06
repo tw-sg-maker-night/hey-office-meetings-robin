@@ -8,19 +8,28 @@ function inspect(obj) {
   return util.inspect(obj, false, null)
 }
 
+const VALID_ROOMS = ['Amoy']
+
 var handlers = {
-  'BookMeetingRoom': function() {
-    var robin = new Robin(process.env.ROBIN_API_TOKEN)
-    var organizationId = process.env.ROBIN_ORGANIZATION_ID
-    var locationId = process.env.ROBIN_LOCATION_ID
+  'BookMeetingRoom.Dialog': function() {
+    var requestedRoom = this.slots.MeetingRoom
+    console.log("requestedRoom:", requestedRoom)
+    var validRoom = VALID_ROOMS.filter(room => {
+      return room == requestedRoom
+    })[0] || null
+    console.log("validRoom:", validRoom)
+    if (validRoom) {
+      this.attributes.MeetingRoom = validRoom
+      this.emit(':delegate')
+    } else {
+      this.emit(':elicit', 'MeetingRoom', `${requestedRoom} is not a valid meeting room. Which meeting room would you like?`)
+    }
+  },
 
-    robin.api.locations.spaces.get(locationId).then(function(response) {
-      var data = response.getData()
-      console.log("Spaces = " + inspect(data))
-    })
-
+  'BookMeetingRoom.Fulfillment': function() {
     this.emit(':tell', "Booking meeting rooms is not yet support. Please try again tomorrow.");
   }
+
 }
 
 module.exports.bookMeetingRoom = (event, context, callback) => {

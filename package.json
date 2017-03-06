@@ -4,12 +4,16 @@
   "description": "",
   "main": "handler.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jasmine-node spec"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "robin-js-sdk": "^0.5.2",
     "lex-sdk": "col/lex-sdk"
+  },
+  "devDependencies": {
+    "jasmine-node": "^1.14.5",
+    "nock": "^9.0.9"
   }
 }
