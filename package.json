@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "robin-js-sdk": "^0.5.2"
+    "robin-js-sdk": "^0.5.2",
+    "lex-sdk": "col/lex-sdk"
   }
 }
