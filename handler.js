@@ -3,6 +3,7 @@
 var util = require('util')
 var Robin = require('robin-js-sdk')
 var Lex = require('lex-sdk')
+var moment = require('moment')
 
 function inspect(obj) {
   return util.inspect(obj, false, null)
@@ -21,7 +22,7 @@ function validateRoom(handler) {
   var room = roomForName(requestedRoomName)
   if (room) {
     // TODO: check availability
-    handler.attributes.room = room
+    handler.attributes.room = room.name
     return true
   } else {
     delete handler.attributes.room
@@ -43,26 +44,30 @@ var handlers = {
     var organizationId = process.env.ROBIN_ORGANIZATION_ID
     var locationId = process.env.ROBIN_LOCATION_ID
 
-    robin.api.spaces.events.post(this.attributes.room.id, {
+    var room = roomForName(this.slots.MeetingRoom)
+    var timeComponents = this.slots.StartTime.split(":")
+    var startDate = moment().hours(timeComponents[0]).minutes(timeComponents[1]);
+    var endDate = moment(startDate).add(1, 'hour')
+
+    robin.api.spaces.events.create(room.id, {
       title: "Test Event",
+      description: 'HeyOffice Booking',
       start: {
-        date_time: '',
-        time_zone: ''
+        date_time: startDate.format(),
+        time_zone: 'Asia/Singapore'
       },
       end: {
-        date_time: '',
-        time_zone: ''
-      },
-      description: '',
-      visibility: '',
-      recurrence: '',
-      // invitees: [{email: '', name: ''}]
-    }).then(function(response) {
-      var data = response.getData()
-      console.log("Spaces = " + inspect(data))
+        date_time: endDate.format(),
+        time_zone: 'Asia/Singapore'
+      }
+    }).then((response) => {
+      var event = response.getData()
+      console.log("Event:", inspect(event))
+      this.emit(':tell', `Ok, I've booked ${this.slots.MeetingRoom} for you`);
+    }).catch((error) => {
+      console.log("Error occurred", inspect(error))
+      this.emit(':tell', 'Something went wrong. I was unable to book the room.');
     })
-
-    this.emit(':tell', "Booking meeting rooms is not yet support. Please try again tomorrow.");
   }
 
 }

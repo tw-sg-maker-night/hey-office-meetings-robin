@@ -26,7 +26,7 @@ describe('BookMeetingRoom Handler', () => {
         succeed: function(response) {
           expect(response.dialogAction.type).toEqual('Delegate')
           expect(response.dialogAction.slots.MeetingRoom).toEqual('Amoy')
-          expect(response.sessionAttributes.room).toEqual({name: 'Amoy', id: 23207})
+          expect(response.sessionAttributes.room).toEqual('Amoy')
           done();
         }
       })
