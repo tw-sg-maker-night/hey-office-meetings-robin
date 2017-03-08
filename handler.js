@@ -19,10 +19,13 @@ function roomForName(name) {
 
 function validateRoom(handler) {
   var requestedRoomName = handler.slots.MeetingRoom
+  if (!requestedRoomName) {
+    return true
+  }
+
   var room = roomForName(requestedRoomName)
   if (room) {
     // TODO: check availability
-    handler.attributes.room = room.name
     return true
   } else {
     delete handler.attributes.room
@@ -32,9 +35,51 @@ function validateRoom(handler) {
   }
 }
 
+function validateNumPeople(handler) {
+  var numPeople = handler.slots.NumPeople
+  if (numPeople) {
+    if (numPeople < 0) {
+      handler.slots.NumPeople = null
+      handler.emit(':elicit', 'NumPeople', `You cannot have a negative amount of people in a meeting! How many people will be attending?`)
+      return false
+    }
+    if (numPeople > 12) {
+      handler.slots.NumPeople = null
+      handler.emit(':elicit', 'NumPeople', `We don't have any rooms that can fit more than 12 people. I'll set the number of attendees to 12. Is this ok?`)
+      return false
+    }
+  }
+  return true
+}
+
+function validateStartTime(handler) {
+  var startTime = handler.slots.StartTime
+  var date = handler.slots.Date
+  if (startTime && date) {
+    var timeComponents = startTime.split(":")
+    var dateTime = moment(date).hours(timeComponents[0]).minutes(timeComponents[1])
+    if (dateTime.diff(moment(), 'hours') < 0) {
+      handler.emit(':elicit', 'StartTime', `Unless you're a time traveller there's not much point booking for ${startTime}. When do you need the room?`)
+      return false
+    }
+  }
+  if (startTime) {
+    var timeComponents = startTime.split(":")
+    var dateTime = moment().hours(timeComponents[0]).minutes(timeComponents[1])
+    if (dateTime.diff(moment(), 'hours') < 0) {
+      handler.emit(':elicit', 'Date', "On what day do you need the room?")
+      return false
+    }
+  }
+  return true
+}
+
 var handlers = {
   'BookMeetingRoom.Dialog': function() {
-    if (validateRoom(this)) {
+    if (validateStartTime(this) && validateNumPeople(this) && validateRoom(this)) {
+      if (this.slots.StartTime && this.slots.NumPeople) {
+        // TODO: find appropriate room and check availability
+      }
       this.emit(':delegate')
     }
   },
