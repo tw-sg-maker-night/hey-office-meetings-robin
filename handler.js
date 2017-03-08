@@ -1,15 +1,14 @@
 'use strict';
 
-var util = require('util')
+var Utils = require('./lib/utils')
 var Robin = require('robin-js-sdk')
 var Lex = require('lex-sdk')
 var moment = require('moment')
+var Promise = require('bluebird')
+var RobinClient = require('./lib/robin_client')
 
-function inspect(obj) {
-  return util.inspect(obj, false, null)
-}
-
-const VALID_ROOMS = [{name: 'Amoy', id: 23207}]
+const VALID_ROOMS = [{name: 'Amoy', id: 23207, size: 4}]
+const MAX_PEOPLE = 20
 
 function roomForName(name) {
   return VALID_ROOMS.filter(room => {
@@ -74,13 +73,35 @@ function validateStartTime(handler) {
   return true
 }
 
+function startDateTime(handler) {
+  if (!handler.slots.StartTime) {
+    return null
+  }
+  var date = handler.slots.Date ? moment(handler.slots.Date) : moment()
+  var timeComponents = handler.slots.StartTime.split(":")
+  return date.hours(timeComponents[0]).minutes(timeComponents[1]);
+}
+
 var handlers = {
   'BookMeetingRoom.Dialog': function() {
     if (validateStartTime(this) && validateNumPeople(this) && validateRoom(this)) {
       if (this.slots.StartTime && this.slots.NumPeople) {
-        // TODO: find appropriate room and check availability
+        RobinClient.findAvailableRoom(startDateTime(this)).then(available => {
+          if (available) {
+            console.log("Found available room", available)
+            this.slots.MeetingRoom = available.name
+            this.emit(':delegate')
+          } else {
+            console.log("No rooms available")
+            this.slots.StartTime = null
+            this.emit(':elicit', 'StartTime', `There is no ${this.slots.NumPeople} person room available at ${this.slots.StartTime}. Please choose a different time?`)
+          }
+        }).catch(error => {
+          console.log("Error finding available room", error)
+        })
+      } else {
+        this.emit(':delegate')
       }
-      this.emit(':delegate')
     }
   },
 
@@ -107,10 +128,10 @@ var handlers = {
       }
     }).then((response) => {
       var event = response.getData()
-      console.log("Event:", inspect(event))
+      console.log("Event:", Utils.inspect(event))
       this.emit(':tell', `Ok, I've booked ${this.slots.MeetingRoom} for you`);
     }).catch((error) => {
-      console.log("Error occurred", inspect(error))
+      console.log("Error occurred", Utils.inspect(error))
       this.emit(':tell', 'Something went wrong. I was unable to book the room.');
     })
   }
@@ -118,7 +139,7 @@ var handlers = {
 }
 
 module.exports.bookMeetingRoom = (event, context, callback) => {
-  console.log("Event = " + inspect(event))
+  console.log("Event = " + Utils.inspect(event))
   var lex = Lex.handler(event, context)
   lex.registerHandlers(handlers)
   lex.execute()

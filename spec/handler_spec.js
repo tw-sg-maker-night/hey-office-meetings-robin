@@ -1,5 +1,8 @@
-const nock = require('nock');
-const handler = require('../handler');
+const nock = require('nock')
+const sinon = require('sinon')
+const Promise = require('bluebird')
+const handler = require('../handler')
+const RobinClient = require('../lib/robin_client')
 
 function testEvent(intentName, invocationSource, sessionAttributes, slots) {
   intentName = intentName || 'TestIntent'
@@ -48,7 +51,7 @@ describe('BookMeetingRoom Handler', () => {
   describe('validate start time', () => {
 
     it('should delegate for a valid start time', (done) => {
-      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {StartTime: "23:59"})
+      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {StartTime: "23:59", MeetingRoom: null})
       handler.bookMeetingRoom(event, {
         succeed: function(response) {
           expect(response.dialogAction.type).toEqual('Delegate')
@@ -60,7 +63,7 @@ describe('BookMeetingRoom Handler', () => {
 
     it('should elicit the date when the start time is in the past', (done) => {
       // Note: This test assumes start of day is invalid. (Will fail when run between 00:00 - 01:00)
-      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {StartTime: "00:00"})
+      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {StartTime: "00:00", MeetingRoom: null})
       handler.bookMeetingRoom(event, {
         succeed: function(response) {
           expect(response.dialogAction.type).toEqual('ElicitSlot')
@@ -77,7 +80,7 @@ describe('BookMeetingRoom Handler', () => {
   describe('validate num people', () => {
 
     it('should delegate for a valid number of people', (done) => {
-      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {NumPeople: 4})
+      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {NumPeople: 4, MeetingRoom: null})
       handler.bookMeetingRoom(event, {
         succeed: function(response) {
           expect(response.dialogAction.type).toEqual('Delegate')
@@ -88,7 +91,7 @@ describe('BookMeetingRoom Handler', () => {
     })
 
     it('should delegate for a invalid number of people', (done) => {
-      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {NumPeople: 500})
+      var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {NumPeople: 500, MeetingRoom: null})
       handler.bookMeetingRoom(event, {
         succeed: function(response) {
           expect(response.dialogAction.type).toEqual('ElicitSlot')
@@ -103,7 +106,61 @@ describe('BookMeetingRoom Handler', () => {
 
   describe('validate date and start time', () => {
 
-    // TODO: ...
+    describe('when no room is available', () => {
+
+      beforeEach(() => {
+        sinon.stub(RobinClient, 'findAvailableRoom', () => {
+          return new Promise((resolve, reject) => {
+            resolve({name: 'Amoy'})
+          })
+        })
+      })
+
+      afterEach(() => {
+        sinon.restore(RobinClient.findAvailableRoom);
+      });
+
+      it('should set the available MeetingRoom and delegate', (done) => {
+        var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {StartTime: "23:00", NumPeople: 4, MeetingRoom: null})
+        handler.bookMeetingRoom(event, {
+          succeed: function(response) {
+            expect(response.dialogAction.type).toEqual('Delegate')
+            expect(response.dialogAction.slots.MeetingRoom).toEqual('Amoy')
+            done();
+          }
+        })
+      })
+
+    })
+
+    describe('when no room is available', () => {
+
+      beforeEach(() => {
+        sinon.stub(RobinClient, 'findAvailableRoom', () => {
+          return new Promise((resolve, reject) => {
+            resolve(null)
+          })
+        })
+      })
+
+      afterEach(() => {
+        sinon.restore(RobinClient.findAvailableRoom);
+      });
+
+      it('should elicit a new StartTime', (done) => {
+        var event = testEvent('BookMeetingRoom', 'DialogCodeHook', {}, {StartTime: "23:00", NumPeople: 4, MeetingRoom: null})
+        handler.bookMeetingRoom(event, {
+          succeed: function(response) {
+            expect(response.dialogAction.type).toEqual('ElicitSlot')
+            expect(response.dialogAction.slotToElicit).toEqual('StartTime')
+            expect(response.dialogAction.slots.StartTime).toEqual(null)
+            expect(response.dialogAction.slots.MeetingRoom).toEqual(null)
+            done();
+          }
+        })
+      })
+
+    })
 
   })
 
