@@ -21,6 +21,13 @@ function testEvent(intentName, invocationSource, sessionAttributes, slots) {
 
 describe('BookMeetingRoom Handler', () => {
 
+  var robinClient
+
+  beforeEach(() => {
+    robinClient = new RobinClient()
+    handler.setRobinClient(robinClient)
+  })
+
   describe('validate meeting room', () => {
 
     it('should delegate for a valid meeting room', (done) => {
@@ -40,6 +47,7 @@ describe('BookMeetingRoom Handler', () => {
         succeed: function(response) {
           expect(response.dialogAction.type).toEqual('ElicitSlot')
           expect(response.dialogAction.slotToElicit).toEqual('MeetingRoom')
+          expect(response.dialogAction.message.content).toEqual('Invalid is not a valid meeting room. Which meeting room would you like?')
           expect(response.dialogAction.slots.MeetingRoom).toEqual(null)
           done();
         }
@@ -109,7 +117,7 @@ describe('BookMeetingRoom Handler', () => {
     describe('when no room is available', () => {
 
       beforeEach(() => {
-        sinon.stub(RobinClient, 'findAvailableRoom', () => {
+        sinon.stub(robinClient, 'findAvailableRoom', () => {
           return new Promise((resolve, reject) => {
             resolve({name: 'Amoy'})
           })
@@ -117,7 +125,7 @@ describe('BookMeetingRoom Handler', () => {
       })
 
       afterEach(() => {
-        sinon.restore(RobinClient.findAvailableRoom);
+        sinon.restore(robinClient.findAvailableRoom);
       });
 
       it('should set the available MeetingRoom and delegate', (done) => {
@@ -136,7 +144,7 @@ describe('BookMeetingRoom Handler', () => {
     describe('when no room is available', () => {
 
       beforeEach(() => {
-        sinon.stub(RobinClient, 'findAvailableRoom', () => {
+        sinon.stub(robinClient, 'findAvailableRoom', () => {
           return new Promise((resolve, reject) => {
             resolve(null)
           })
@@ -144,7 +152,7 @@ describe('BookMeetingRoom Handler', () => {
       })
 
       afterEach(() => {
-        sinon.restore(RobinClient.findAvailableRoom);
+        sinon.restore(robinClient.findAvailableRoom);
       });
 
       it('should elicit a new StartTime', (done) => {
@@ -162,6 +170,24 @@ describe('BookMeetingRoom Handler', () => {
 
     })
 
+  })
+
+  describe('make booking with just the start time', () => {
+    beforeEach(() => {
+      sinon.stub(robinClient, 'findAvailableRoom', () => {
+        return new Promise((resolve, reject) => {
+          resolve({name: 'Amoy'})
+        })
+      })
+    })
+
+    afterEach(() => {
+      sinon.restore(robinClient.findAvailableRoom);
+    })
+
+    it('should book an available meeting room', () => {
+
+    })
   })
 
 });

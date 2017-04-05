@@ -13,11 +13,11 @@
     "lex-sdk": "col/lex-sdk",
     "moment": "^2.17.1",
     "moment-timezone": "^0.5.11",
-    "robin-js-sdk": "col/robin-js-sdk-public",
-    "sinon": "^1.17.7"
+    "robin-js-sdk": "col/robin-js-sdk-public"
   },
   "devDependencies": {
     "jasmine-node": "^1.14.5",
-    "nock": "^9.0.9"
+    "nock": "^9.0.9",
+    "sinon": "^1.17.7"
   }
 }

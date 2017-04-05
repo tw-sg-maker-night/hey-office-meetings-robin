@@ -10,6 +10,9 @@ var RobinClient = require('./lib/robin_client')
 const VALID_ROOMS = [{name: 'Amoy', id: 23207, size: 4}]
 const MAX_PEOPLE = 20
 
+var robin = new Robin(process.env.ROBIN_API_TOKEN)
+var robinClient = new RobinClient(robin)
+
 function roomForName(name) {
   return VALID_ROOMS.filter(room => {
     return room.name == name
@@ -86,7 +89,7 @@ var handlers = {
   'BookMeetingRoom.Dialog': function() {
     if (validateStartTime(this) && validateNumPeople(this) && validateRoom(this)) {
       if (this.slots.StartTime && this.slots.NumPeople) {
-        RobinClient.findAvailableRoom(startDateTime(this)).then(available => {
+        robinClient.findAvailableRoom(startDateTime(this)).then(available => {
           if (available) {
             console.log("Found available room", available)
             this.slots.MeetingRoom = available.name
@@ -106,41 +109,28 @@ var handlers = {
   },
 
   'BookMeetingRoom.Fulfillment': function() {
-    var robin = new Robin(process.env.ROBIN_API_TOKEN)
-    var organizationId = process.env.ROBIN_ORGANIZATION_ID
-    var locationId = process.env.ROBIN_LOCATION_ID
-
     var room = roomForName(this.slots.MeetingRoom)
     var timeComponents = this.slots.StartTime.split(":")
     var startDate = moment().hours(timeComponents[0]).minutes(timeComponents[1]);
     var endDate = moment(startDate).add(1, 'hour')
 
-    robin.api.spaces.events.create(room.id, {
-      title: "Test Event",
-      description: 'HeyOffice Booking',
-      start: {
-        date_time: startDate.format(),
-        time_zone: 'Asia/Singapore'
-      },
-      end: {
-        date_time: endDate.format(),
-        time_zone: 'Asia/Singapore'
-      }
-    }).then((response) => {
-      var event = response.getData()
-      console.log("Event:", Utils.inspect(event))
-      this.emit(':tell', `Ok, I've booked ${this.slots.MeetingRoom} for you`);
-    }).catch((error) => {
-      console.log("Error occurred", Utils.inspect(error))
+    robinClient.createEvent(room, startDate, endDate).then(() => {
+      this.emit(':tell', `Ok, I've booked ${this.slots.MeetingRoom} for you`)
+    }).catch(() => {
       this.emit(':tell', 'Something went wrong. I was unable to book the room.');
     })
   }
 
 }
 
-module.exports.bookMeetingRoom = (event, context, callback) => {
-  console.log("Event = " + Utils.inspect(event))
-  var lex = Lex.handler(event, context)
-  lex.registerHandlers(handlers)
-  lex.execute()
-};
+module.exports = {
+  setRobinClient: (client) => {
+    robinClient = client
+  },
+  bookMeetingRoom: (event, context, callback) => {
+    console.log("Event = " + Utils.inspect(event))
+    var lex = Lex.handler(event, context)
+    lex.registerHandlers(handlers)
+    lex.execute()
+  }
+}
